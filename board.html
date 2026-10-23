@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EDP Alerts</title>
+<style>
+  :root { --bg: #0f1115; --card: #181b22; --text: #e8e8ea; --muted: #8b8f98; --accent: #ff5a4f; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 16px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--text); }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  code { background: var(--card); padding: 2px 6px; border-radius: 4px; word-break: break-all; }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .chip { background: var(--card); border-radius: 999px; padding: 4px 12px; }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li { display: flex; gap: 12px; align-items: baseline; background: var(--card);
+       border-radius: 8px; padding: 10px 14px; margin-bottom: 6px; }
+  li.new { outline: 2px solid var(--accent); }
+  .event { font-weight: 700; min-width: 110px; }
+  .who { flex: 1; }
+  .time { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🚨 EDP Alerts</h1>
+  <div class="sub">POST <code id="url"></code> with <code>{"event": "fire", "student": "Full name 12345"}</code></div>
+  <div class="stats" id="stats"></div>
+  <ul id="list"><li class="empty">Waiting for alerts…</li></ul>
+</main>
+<script>
+  const ICONS = { fire: "🔥", flood: "🌊", hurricane: "🌀", huricane: "🌀", earthquake: "🌍",
+                  tornado: "🌪️", tsunami: "🌊", storm: "⛈️", snow: "❄️", blizzard: "❄️",
+                  medical: "🚑", police: "🚓", gas: "☣️", power: "⚡", heat: "🥵", volcano: "🌋" };
+  const icon = (e) => ICONS[e.toLowerCase().trim()] || "⚠️";
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  document.getElementById("url").textContent = location.origin + "/alerts";
+  let lastId = null;
+
+  async function refresh() {
+    try {
+      const { alerts } = await (await fetch("/alerts?limit=200")).json();
+      const counts = {};
+      alerts.forEach((a) => { const k = a.event.toLowerCase(); counts[k] = (counts[k] || 0) + 1; });
+      document.getElementById("stats").innerHTML = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([e, n]) => `<span class="chip">${icon(e)} ${esc(e)} · ${n}</span>`).join("");
+      document.getElementById("list").innerHTML = alerts.length
+        ? alerts.map((a) => `<li class="${lastId !== null && a.id > lastId ? "new" : ""}">
+            <span class="event">${icon(a.event)} ${esc(a.event)}</span>
+            <span class="who">${esc(a.student || a.origin || "anonymous")}</span>
+            <span class="time">${new Date(a.created_at).toLocaleTimeString()}</span></li>`).join("")
+        : '<li class="empty">Waiting for alerts…</li>';
+      if (alerts.length) lastId = alerts[0].id;
+    } catch (e) { /* retry next tick */ }
+  }
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+</body>
+</html>
