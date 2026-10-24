@@ -93,7 +93,8 @@ async def create_alert(request: Request):
 def list_alerts(limit: int = 100):
     with closing(db()) as conn:
         rows = conn.execute(
-            "select id, created_at, event, student, origin from alerts order by id desc limit ?",
+            "select id, created_at, event, student, origin, user_agent from alerts"
+            " order by id desc limit ?",
             (min(max(limit, 1), 1000),),
         ).fetchall()
     return {"ok": True, "count": len(rows), "alerts": [dict(r) for r in rows]}
